@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红宝书词典 - 单词搜索</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2d3748;
+            --accent: #ed8936;
+            --accent-light: #fbd38d;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --error: #e53e3e;
+            --background: #f7fafc;
+            --text: #1a202c;
+            --card-bg: #ffffff;
+            --muted: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%);
+            padding: 1.5rem 2rem;
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        header h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        header h1 .icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 3rem 2rem;
+        }
+
+        .search-section {
+            width: 100%;
+            max-width: 720px;
+            margin-bottom: 2rem;
+        }
+
+        .search-container {
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-container:focus-within {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1.25rem 3.5rem 1.25rem 3.5rem;
+            font-size: 1.125rem;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            background: var(--card-bg);
+            outline: none;
+            transition: border-color 0.2s ease;
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .search-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #a0aec0;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: none;
+            font-size: 1.25rem;
+        }
+
+        .clear-btn.visible {
+            display: block;
+        }
+
+        .clear-btn:hover {
+            color: var(--secondary);
+        }
+
+        .loading-bar {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: #ebf8ff;
+            color: #2b6cb0;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .results-container {
+            width: 100%;
+            max-width: 720px;
+        }
+
+        .results-header {
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .results-header .count {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .group {
+            margin-bottom: 1.5rem;
+        }
+
+        .group-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+
+        .group-label.exact {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .group-label.prefix {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .group-label.contains {
+            background: #faf089;
+            color: #744210;
+        }
+
+        .group-label.similar {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .word-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.3s ease-out;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .result-card.exact {
+            border-left-color: var(--success);
+        }
+
+        .result-card.prefix {
+            border-left-color: #3182ce;
+        }
+
+        .result-card.contains {
+            border-left-color: #d69e2e;
+        }
+
+        .result-card.similar {
+            border-left-color: var(--error);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .word-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .word-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .word-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        .word-title .match-part {
+            background: var(--accent-light);
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+
+        .word-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.375rem;
+            flex-wrap: wrap;
+        }
+
+        .match-type-tag {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: #edf2f7;
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        .match-type-tag.exact {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .match-type-tag.prefix {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .match-type-tag.contains {
+            background: #faf089;
+            color: #744210;
+        }
+
+        .match-type-tag.similar {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .page-badge {
+            background: linear-gradient(135deg, var(--accent) 0%, #dd6b20 100%);
+            color: white;
+            padding: 0.4rem 0.875rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(237, 137, 54, 0.3);
+        }
+
+        .page-badge .page-num {
+            font-size: 1.1rem;
+        }
+
+        .not-found-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .not-found-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .not-found-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .not-found-desc {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--muted);
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary);
+        }
+
+        .empty-state p {
+            font-size: 0.875rem;
+        }
+
+        .example-tags {
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .example-tag {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: var(--secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .example-tag:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        footer .badge {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.125rem 0.5rem;
+            background: #e2e8f0;
+            color: var(--secondary);
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 640px) {
+            main {
+                padding: 2rem 1rem;
+            }
+            header {
+                padding: 1.25rem 1rem;
+            }
+            header h1 {
+                font-size: 1.5rem;
+            }
+            .result-card {
+                padding: 1rem;
+            }
+            .word-header {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .page-badge {
+                align-self: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>
+            <span class="icon">辞</span>
+            红宝书词典
+        </h1>
+    </header>
+
+    <main>
+        <section class="search-section">
+            <div class="search-container">
+                <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input
+                    type="text"
+                    class="search-input"
+                    id="searchInput"
+                    placeholder="输入单词进行搜索..."
+                    autocomplete="off"
+                    autofocus
+                >
+                <button class="clear-btn" id="clearBtn" title="清除">×</button>
+            </div>
+            <div class="loading-bar" id="loadingBar">正在加载词库...</div>
+        </section>
+
+        <section class="results-container" id="resultsContainer">
+            <div class="empty-state" id="emptyState">
+                <div class="icon">🔍</div>
+                <h3>开始搜索</h3>
+                <p>输入单词查看其在红宝书中的页码</p>
+                <div class="example-tags" id="exampleTags">
+                    <span class="example-tag">abandon</span>
+                    <span class="example-tag">aberr</span>
+                    <span class="example-tag">acqui</span>
+                    <span class="example-tag">ambigu</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        © 2026 红宝书词典 · 纯前端版本 · 支持精确匹配、模糊匹配和拼写纠错 <span class="badge" id="wordCountBadge">-</span>
+    </footer>
+
+    <script src="words.js"></script>
+    <script>
+        // ============= 搜索核心逻辑 =============
+
+        // 预处理单词数据：转成小写便于搜索
+        const WORDS = (window.WORDS_DATA || []).map(function(item) {
+            return {
+                word: item[0],
+                wordLower: item[0].toLowerCase(),
+                page: item[1]
+            };
+        });
+
+        // Levenshtein 编辑距离
+        function levenshteinDistance(s1, s2) {
+            if (s1.length < s2.length) {
+                return levenshteinDistance(s2, s1);
+            }
+            if (s2.length === 0) {
+                return s1.length;
+            }
+
+            var previousRow = new Array(s2.length + 1);
+            for (var j = 0; j <= s2.length; j++) {
+                previousRow[j] = j;
+            }
+
+            for (var i = 0; i < s1.length; i++) {
+                var currentRow = [i + 1];
+                for (var j = 0; j < s2.length; j++) {
+                    var insertions = previousRow[j + 1] + 1;
+                    var deletions = currentRow[j] + 1;
+                    var substitutions = previousRow[j] + (s1[i] !== s2[j] ? 1 : 0);
+                    currentRow.push(Math.min(insertions, deletions, substitutions));
+                }
+                previousRow = currentRow;
+            }
+
+            return previousRow[previousRow.length - 1];
+        }
+
+        // 搜索：精确匹配
+        function searchExact(query) {
+            var q = query.toLowerCase();
+            for (var i = 0; i < WORDS.length; i++) {
+                if (WORDS[i].wordLower === q) {
+                    return WORDS[i];
+                }
+            }
+            return null;
+        }
+
+        // 搜索：前缀匹配
+        function searchPrefix(query, limit) {
+            var q = query.toLowerCase();
+            var results = [];
+            for (var i = 0; i < WORDS.length; i++) {
+                if (WORDS[i].wordLower.startsWith(q)) {
+                    results.push(WORDS[i]);
+                    if (results.length >= limit) break;
+                }
+            }
+            results.sort(function(a, b) {
+                return a.wordLower.localeCompare(b.wordLower);
+            });
+            return results;
+        }
+
+        // 搜索：包含匹配
+        function searchContains(query, limit) {
+            var q = query.toLowerCase();
+            var results = [];
+            for (var i = 0; i < WORDS.length; i++) {
+                if (WORDS[i].wordLower.indexOf(q) !== -1) {
+                    results.push(WORDS[i]);
+                    if (results.length >= limit) break;
+                }
+            }
+            results.sort(function(a, b) {
+                return a.wordLower.localeCompare(b.wordLower);
+            });
+            return results;
+        }
+
+        // 搜索：拼写相近（Levenshtein）
+        function searchSimilar(query, limit) {
+            var q = query.toLowerCase();
+            var maxDist = q.length <= 3 ? 1 : (q.length <= 6 ? 2 : 3);
+
+            var scored = [];
+            for (var i = 0; i < WORDS.length; i++) {
+                var dist = levenshteinDistance(q, WORDS[i].wordLower);
+                if (dist <= maxDist && dist > 0) {
+                    scored.push({ dist: dist, word: WORDS[i] });
+                }
+            }
+
+            scored.sort(function(a, b) {
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                return a.word.wordLower.localeCompare(b.word.wordLower);
+            });
+
+            var result = [];
+            for (var i = 0; i < Math.min(limit, scored.length); i++) {
+                result.push(scored[i].word);
+            }
+            return result;
+        }
+
+        // 组合搜索
+        function performSearch(query) {
+            var exact = searchExact(query);
+            var prefix = searchPrefix(query, 15);
+            var contains = searchContains(query, 15);
+            var similar = searchSimilar(query, 10);
+
+            var exactList = exact ? [exact] : [];
+
+            // 过滤前缀结果，排除精确匹配
+            var qLower = query.toLowerCase();
+            var prefixFiltered = [];
+            for (var i = 0; i < prefix.length; i++) {
+                if (prefix[i].wordLower !== qLower) {
+                    prefixFiltered.push(prefix[i]);
+                }
+            }
+
+            // 过滤包含结果，排除精确和前缀
+            var containsFiltered = [];
+            var existingWords = {};
+            if (exact) existingWords[exact.wordLower] = true;
+            for (var i = 0; i < prefixFiltered.length; i++) {
+                existingWords[prefixFiltered[i].wordLower] = true;
+            }
+            for (var i = 0; i < contains.length; i++) {
+                var w = contains[i];
+                if (!existingWords[w.wordLower]) {
+                    containsFiltered.push(w);
+                    existingWords[w.wordLower] = true;
+                }
+            }
+
+            // 过滤相似结果，排除前面已经出现的
+            var similarFiltered = [];
+            for (var i = 0; i < similar.length; i++) {
+                if (!existingWords[similar[i].wordLower]) {
+                    similarFiltered.push(similar[i]);
+                    existingWords[similar[i].wordLower] = true;
+                }
+            }
+
+            var total = exactList.length + prefixFiltered.length + containsFiltered.length + similarFiltered.length;
+
+            return {
+                query: query,
+                found: total > 0,
+                total: total,
+                exact: exactList,
+                prefix: prefixFiltered,
+                contains: containsFiltered,
+                similar: similarFiltered
+            };
+        }
+
+        // ============= UI 渲染逻辑 =============
+
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingBar = document.getElementById('loadingBar');
+        const wordCountBadge = document.getElementById('wordCountBadge');
+
+        let debounceTimer = null;
+        let dataLoaded = false;
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function highlightMatch(word, query) {
+            var safeWord = escapeHtml(word);
+            var safeQuery = escapeHtml(query).toLowerCase();
+            if (!safeQuery) return safeWord;
+
+            var lowerWord = safeWord.toLowerCase();
+            var idx = lowerWord.indexOf(safeQuery);
+
+            if (idx >= 0) {
+                var before = safeWord.substring(0, idx);
+                var match = safeWord.substring(idx, idx + safeQuery.length);
+                var after = safeWord.substring(idx + safeQuery.length);
+                return before + '<span class="match-part">' + match + '</span>' + after;
+            }
+            return safeWord;
+        }
+
+        function renderWordCard(wordData, type, query) {
+            var highlightedWord = highlightMatch(wordData.word, query);
+            var matchTagMap = {
+                'exact': '精确匹配',
+                'prefix': '前缀匹配',
+                'contains': '包含匹配',
+                'similar': '拼写相近'
+            };
+
+            return '<div class="result-card ' + type + '">' +
+                '<div class="word-header">' +
+                '<div class="word-info">' +
+                '<div class="word-title">' + highlightedWord + '</div>' +
+                '<div class="word-meta">' +
+                '<span class="match-type-tag ' + type + '">' + matchTagMap[type] + '</span>' +
+                '</div>' +
+                '</div>' +
+                '<div class="page-badge">' +
+                '<span>📖</span>' +
+                '<span>第</span>' +
+                '<span class="page-num">' + wordData.page + '</span>' +
+                '<span>页</span>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        }
+
+        function renderResults(data, query) {
+            var html = '';
+            html += '<div class="results-header">为 "<span class="count">' + escapeHtml(query) + '</span>" 找到 <span class="count">' + data.total + '</span> 条相关单词</div>';
+
+            if (data.exact.length > 0) {
+                html += '<div class="group">' +
+                    '<div class="group-label exact">✓ 精确匹配</div>' +
+                    '<div class="word-cards">';
+                for (var i = 0; i < data.exact.length; i++) {
+                    html += renderWordCard(data.exact[i], 'exact', query);
+                }
+                html += '</div></div>';
+            }
+
+            if (data.prefix.length > 0) {
+                html += '<div class="group">' +
+                    '<div class="group-label prefix">→ 前缀匹配 (单词以 "' + escapeHtml(query) + '" 开头)</div>' +
+                    '<div class="word-cards">';
+                for (var i = 0; i < data.prefix.length; i++) {
+                    html += renderWordCard(data.prefix[i], 'prefix', query);
+                }
+                html += '</div></div>';
+            }
+
+            if (data.contains.length > 0) {
+                html += '<div class="group">' +
+                    '<div class="group-label contains">≋ 包含匹配 (单词中含有 "' + escapeHtml(query) + '")</div>' +
+                    '<div class="word-cards">';
+                for (var i = 0; i < data.contains.length; i++) {
+                    html += renderWordCard(data.contains[i], 'contains', query);
+                }
+                html += '</div></div>';
+            }
+
+            if (data.similar.length > 0) {
+                html += '<div class="group">' +
+                    '<div class="group-label similar">~ 拼写相近 (您可能想输入这些单词)</div>' +
+                    '<div class="word-cards">';
+                for (var i = 0; i < data.similar.length; i++) {
+                    html += renderWordCard(data.similar[i], 'similar', query);
+                }
+                html += '</div></div>';
+            }
+
+            resultsContainer.innerHTML = html;
+        }
+
+        function renderNotFound(query) {
+            resultsContainer.innerHTML = '<div class="not-found-card">' +
+                '<div class="not-found-icon">😕</div>' +
+                '<div class="not-found-title">' + escapeHtml(query) + '</div>' +
+                '<div class="not-found-desc">未在红宝书中找到相关单词，请检查拼写或换个关键词试试</div>' +
+                '</div>';
+        }
+
+        function showEmptyState() {
+            resultsContainer.innerHTML = '<div class="empty-state">' +
+                '<div class="icon">🔍</div>' +
+                '<h3>开始搜索</h3>' +
+                '<p>输入单词查看其在红宝书中的页码</p>' +
+                '<div class="example-tags" id="exampleTags">' +
+                '<span class="example-tag">abandon</span>' +
+                '<span class="example-tag">aberr</span>' +
+                '<span class="example-tag">acqui</span>' +
+                '<span class="example-tag">ambigu</span>' +
+                '</div>' +
+                '</div>';
+            bindExampleTags();
+        }
+
+        function bindExampleTags() {
+            var container = document.getElementById('exampleTags');
+            if (!container) return;
+            container.addEventListener('click', function(e) {
+                if (e.target.classList.contains('example-tag')) {
+                    var word = e.target.textContent;
+                    searchInput.value = word;
+                    clearBtn.classList.add('visible');
+                    doSearch(word);
+                }
+            });
+        }
+
+        function doSearch(query) {
+            var trimmed = query.trim();
+            if (trimmed.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            var results = performSearch(trimmed);
+            if (results.found) {
+                renderResults(results, trimmed);
+            } else {
+                renderNotFound(trimmed);
+            }
+        }
+
+        // 初始化
+        function init() {
+            if (WORDS.length > 0) {
+                dataLoaded = true;
+                loadingBar.style.display = 'none';
+                wordCountBadge.textContent = WORDS.length + ' 条词库';
+
+                searchInput.addEventListener('input', function(e) {
+                    var query = e.target.value;
+                    clearBtn.classList.toggle('visible', query.trim().length > 0);
+
+                    if (debounceTimer) clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function() {
+                        if (query.trim().length > 0) {
+                            doSearch(query);
+                        } else {
+                            showEmptyState();
+                        }
+                    }, 200);
+                });
+
+                clearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    clearBtn.classList.remove('visible');
+                    showEmptyState();
+                    searchInput.focus();
+                });
+
+                bindExampleTags();
+            } else {
+                loadingBar.textContent = '词库数据加载失败，请确保 words.js 文件存在';
+                loadingBar.style.background = '#fed7d7';
+                loadingBar.style.color = '#742a2a';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+run = "python main.py"
+entrypoint = "main.py"
+language = "python3"
+
+[packager]
+enabledForHosting = false
+
+[deployment]
+run = ["python", "main.py"]

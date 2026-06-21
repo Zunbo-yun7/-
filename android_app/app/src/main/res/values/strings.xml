@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">红宝书词典</string>
+    <string name="loading_server">正在启动词典服务...</string>
+    <string name="server_error">无法连接到词典服务，请确保电脑端已运行红宝书词典</string>
+</resources>
