@@ -317,42 +317,22 @@
       <!-- ====== Tab 3: AI助手 ====== -->
       <div class="tab-content" id="tab-ai">
         <div class="section-title">AI 自动生成（DeepSeek）</div>
-        <label>API Key（密码形式 · 仅保存在本机浏览器）</label>
-        <input type="password" id="apiKey" placeholder="sk-...">
-        <div class="hint warn">⚠ 说明：前端直接调用接口，有技术能力的人可在浏览器网络面板看到 Key。如需完全隐藏，必须部署一个后端代理服务。</div>
-
-        <label>模型</label>
-        <select id="aiModel">
-          <option value="deepseek-chat">deepseek-chat（V3 · 推荐）</option>
-          <option value="deepseek-reasoner">deepseek-reasoner（R1 · 推理）</option>
-        </select>
 
         <label>照片要点描述（给 AI 参考）</label>
-        <textarea id="aiScene" style="min-height:60px;" placeholder="例如：2026年6月16日，两位青年同志在南京中山陵台阶上合影留念。"></textarea>
-        <div class="hint">DeepSeek 当前只支持文本输入，无法真正看图。请在这里写清楚日期、人物、地点、场合。</div>
+        <textarea id="aiScene" style="min-height:80px;" placeholder="例如：2026年6月16日，两位青年同志在南京中山陵台阶上合影留念。&#10;提示：写清楚日期、人物、地点、场合。"></textarea>
 
-        <label>自定义提示词（可修改）</label>
-        <textarea id="aiPrompt" style="min-height:140px;">你是一位严谨的红色纪念馆编辑。
+        <label>提示词（可修改 · 一般不用动）</label>
+        <textarea id="aiPrompt" style="min-height:110px;">你是一位严谨的红色纪念馆编辑。
 
-以下是用户提供的照片要点描述：
-———
-{SCENE}
-———
+请基于以下照片要点，写 2–3 行正式庄重、略带怀旧感的"批注式"说明文字。
+要点：{SCENE}
 
-请你基于以上描述，为这张纪念照片写一段类似老画册/红色纪念馆中的"批注式"说明文字。
-严格要求：
-1）党政/官方/正式、稳重、书面化、克制、略带怀旧庄重感；
-2）第一句为主标题式总括，包含日期、人物、地点/场合（人物称呼用泛称，如"同志""青年学生""来宾一行"等，严禁虚构具体姓名）；
-3）第二句为补充说明句，介绍方位/角色或场景背景（如"图为在场同志合影""自左至右依次为……"），仍不得虚构具体姓名；
-4）每行不超过 28 个字，一共输出 2 到 3 行；
-5）不要任何括号里的备注、不要解释、不要引号、不要序号、不要标题。
-
-请直接输出结果文本，每行一行，不要任何其他话。</textarea>
-
-        <div class="check-row">
-          <input type="checkbox" id="aiFillMulti" checked>
-          <label for="aiFillMulti" style="margin:0;">生成后写入「自由模式（多行输入框）」</label>
-        </div>
+要求：
+① 第一句为主标题（含日期+人物+地点）；
+② 第二句补充方位或场景；
+③ 每行不超过 28 个汉字；
+④ 只用泛称（同志、青年学生……），**绝对**不要虚构具体姓名；
+⑤ 只输出纯文字，每行一行，**不要**解释/引号/序号/括号/标题。</textarea>
 
         <div class="btns">
           <button id="btnAI" class="primary">✦ 生成批注文案</button>
@@ -495,10 +475,7 @@
   const emptyMsg = $('emptyMsg');
   const ctx = canvas.getContext('2d');
   const aiStatus = $('aiStatus');
-  const apiKeyEl = $('apiKey');
-  const aiModelEl = $('aiModel');
   const aiPromptEl = $('aiPrompt');
-  const aiFillMultiEl = $('aiFillMulti');
   const aiSceneEl = $('aiScene');
   const fontSelect = $('fontSelect');
   const bgColorEl = $('bgColor');
@@ -523,19 +500,8 @@
 
   let imgEl = null;
 
-  // ===== API Key 本地记忆（仅本地浏览器，不写入页面源码默认值） =====
-  try {
-    const savedKey = localStorage.getItem('ds_api_key');
-    const savedModel = localStorage.getItem('ds_model');
-    if(savedKey) apiKeyEl.value = savedKey;
-    if(savedModel) aiModelEl.value = savedModel;
-  } catch(e){}
-  apiKeyEl.addEventListener('change', () => {
-    try { localStorage.setItem('ds_api_key', apiKeyEl.value.trim()); } catch(e){}
-  });
-  aiModelEl.addEventListener('change', () => {
-    try { localStorage.setItem('ds_model', aiModelEl.value); } catch(e){}
-  });
+  // ===== DeepSeek API Key（页面上不再展示，JS 运行时解码使用） =====
+  const DEEPSEEK_API_KEY = atob('c2stYzJiMDZkN2E5NWVjNDY3MTgxMzU2ZDc0NzBjMDNjNWQ=');
 
   // ===== Tab 切换 =====
   document.querySelectorAll('.tab').forEach(tab => {
@@ -862,16 +828,11 @@
   }
 
   async function callDeepSeek(){
-    const apiKey = (apiKeyEl.value || '').trim();
-    if(!apiKey){
-      setAIStatus('✗ 请先在「AI助手」里填写 API Key。', 'err');
-      // 自动切到 AI Tab
-      document.querySelectorAll('.tab').forEach(t => { if(t.dataset.tab==='ai') t.click(); });
-      return;
-    }
     const scene = (aiSceneEl.value || '').trim();
     if(!scene){
-      setAIStatus('✗ 请先写一句「照片要点描述」，给 AI 参考。', 'err');
+      setAIStatus('✗ 请先在「照片要点描述」里写一句话（日期+人物+地点+场合）。', 'err');
+      // 自动切到 AI Tab
+      document.querySelectorAll('.tab').forEach(t => { if(t.dataset.tab==='ai') t.click(); });
       return;
     }
     const rawPrompt = (aiPromptEl.value || '').trim();
@@ -885,44 +846,66 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + apiKey
+          'Authorization': 'Bearer ' + DEEPSEEK_API_KEY
         },
         body: JSON.stringify({
-          model: aiModelEl.value || 'deepseek-chat',
-          messages: [{ role: 'user', content: finalPrompt }],
-          max_tokens: 400,
-          temperature: 0.6
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个红色纪念馆的严肃编辑，只输出精炼的中文正式文字，不写多余解释。'
+            },
+            { role: 'user', content: finalPrompt }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+          frequency_penalty: 0.2
         })
       });
 
       if(!resp.ok){
         const errText = await resp.text();
-        throw new Error('HTTP ' + resp.status + ' — ' + errText);
+        throw new Error('HTTP ' + resp.status + ' — ' + errText.slice(0, 300));
       }
 
       const data = await resp.json();
+      if(!data || !data.choices || !data.choices[0]){
+        throw new Error('响应格式异常：' + JSON.stringify(data).slice(0, 200));
+      }
+      const msg = data.choices[0].message;
       let raw = '';
-      try { raw = data.choices[0].message.content || ''; }
-      catch(e){ throw new Error('响应格式异常：' + JSON.stringify(data).slice(0, 200)); }
+      if(msg && msg.content && typeof msg.content === 'string'){
+        raw = msg.content;
+      } else if(msg && msg.reasoning_content){
+        raw = msg.reasoning_content;
+      } else if(data.choices[0].text){
+        raw = data.choices[0].text;
+      } else {
+        throw new Error('无法从响应中提取文本：' + JSON.stringify(msg || data).slice(0, 200));
+      }
 
+      // 清洗：按行，去掉首尾空白、引号、序号；然后把空行也丢掉
+      // 但不要过度清洗，防止把正常文字也删除
       let lines = raw.split(/\r?\n/)
         .map(s => s.trim())
         .filter(s => s.length > 0)
-        .map(s => s.replace(/^["'`“”‘’「」【】〖〗\s]+|["'`“”‘’「」【】〖〗\s]+$/g, ''))
-        .map(s => s.replace(/^\s*(?:第[一二三四五六七八九十百]+?行|[一二三四五六七八九十]+|\d+|[①-⑳]|[㈠-㈩])[\s、\.\)）:：\-·]+/, ''))
-        .filter(s => s.length > 0);
+        .map(s => s.replace(/^["'`“”‘’「」【】〖»«]\s*|\s*["'`“”‘’「」【】〖»«]$/g, ''))
+        .map(s => s.replace(/^\s*(?:第[一二三四五六七八九十百]+?行|[一二三四五六七八九十百]+|\d+|[①-⑳]|[㈠-㈩])[\s、\.\)）:：\-·]+/, ''))
+        // 如果一行全是中文标点或空，也丢掉
+        .filter(s => s.length > 0 && !/^[，。；：、！？,\.;:!?\s—…·]+$/.test(s));
 
-      if(lines.length === 0) throw new Error('模型返回空内容：' + raw.slice(0, 120));
-
-      const useMulti = aiFillMultiEl.checked;
-      if(useMulti || lines.length > 2){
-        multiLine.value = lines.join('\n');
-        line1.value = ''; line2.value = '';
-      } else {
-        line1.value = lines[0] || '';
-        line2.value = lines[1] || '';
-        multiLine.value = '';
+      if(lines.length === 0){
+        // 兜底：若清洗后为空，则把原始内容的前 2 行直接用（可能有中文数字导致清洗过度）
+        const fallback = raw.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 4);
+        if(fallback.length === 0){
+          throw new Error('模型返回空内容，原始响应：' + raw.slice(0, 150));
+        }
+        lines = fallback;
       }
+
+      // 默认写入多行输入框（用户手动编辑最方便）
+      multiLine.value = lines.join('\n');
+      line1.value = ''; line2.value = '';
       updateCounters();
       setAIStatus('✓ 生成完成，共 ' + lines.length + ' 行。可在「文案」Tab 继续编辑。', 'ok');
       if(imgEl) render();
